@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>NEOPROXY :: MOLECULAR VIEWER</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#020308; font-family:'Courier New', monospace; }
+  #renderCanvas { width:100%; height:100%; display:block; touch-action:none; }
+
+  #hud {
+    position:fixed; top:16px; left:16px; z-index:10;
+    background:rgba(2,4,12,0.78);
+    border:1px solid #00e5ff55;
+    box-shadow:0 0 18px #00e5ff22, inset 0 0 18px #00e5ff11;
+    padding:14px 16px; min-width:230px;
+    color:#9df6ff;
+    backdrop-filter: blur(4px);
+  }
+  #hud h1 {
+    font-size:12px; letter-spacing:2px; color:#00e5ff;
+    text-shadow:0 0 8px #00e5ff;
+    margin-bottom:8px;
+  }
+  #molName { font-size:16px; color:#fff; }
+  #molFormula { font-size:13px; color:#c026ff; text-shadow:0 0 6px #c026ff; margin-bottom:10px; }
+
+  .btnRow { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  button[data-mol] {
+    background:transparent; color:#9df6ff;
+    border:1px solid #00e5ff66; padding:6px 10px;
+    font-family:inherit; font-size:11px; letter-spacing:1px;
+    cursor:pointer; transition:all .15s ease;
+  }
+  button[data-mol]:hover { background:#00e5ff22; box-shadow:0 0 10px #00e5ff77; }
+  button[data-mol].active { background:#00e5ff33; color:#fff; box-shadow:0 0 12px #00e5ffaa; }
+
+  #legend { margin-top:12px; font-size:11px; color:#7fdfff99; line-height:1.6; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+</style>
+</head>
+<body>
+
+<canvas id="renderCanvas"></canvas>
+
+<div id="hud">
+  <h1>NEOPROXY :: MOLECULAR VIEWER</h1>
+  <div id="molName">—</div>
+  <div id="molFormula">—</div>
+  <div class="btnRow">
+    <button data-mol="agua">AGUA</button>
+    <button data-mol="metano">METANO</button>
+    <button data-mol="benceno">BENCENO</button>
+    <button data-mol="cafeina" class="active">CAFEÍNA</button>
+  </div>
+  <div id="legend">
+    <span class="dot" style="background:#00e5ff;box-shadow:0 0 6px #00e5ff;"></span>Carbono
+    <br><span class="dot" style="background:#9d4dff;box-shadow:0 0 6px #9d4dff;"></span>Nitrógeno
+    <br><span class="dot" style="background:#ff2965;box-shadow:0 0 6px #ff2965;"></span>Oxígeno
+    <br><span class="dot" style="background:#e8faff;box-shadow:0 0 6px #e8faff;"></span>Hidrógeno
+  </div>
+</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/materials/babylonjs.materials.min.js"></script>
+<script>
+const canvas = document.getElementById("renderCanvas");
+const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:true, stencil:true });
+
+const ELEMENTS = {
+  C: { color: new BABYLON.Color3(0, 0.90, 1.00), radius: 0.32 },
+  N: { color: new BABYLON.Color3(0.62, 0.30, 1.00), radius: 0.30 },
+  O: { color: new BABYLON.Color3(1.00, 0.16, 0.40), radius: 0.30 },
+  H: { color: new BABYLON.Color3(0.91, 0.98, 1.00), radius: 0.16 }
+};
+
+function buildBenceno() {
+  const atoms = [], bonds = [];
+  for (let i = 0; i < 6; i++) {
+    const t = i * Math.PI / 3;
+    atoms.push({ el:'C', pos:[1.4*Math.cos(t), 1.4*Math.sin(t), 0] });
+  }
+  for (let i = 0; i < 6; i++) {
+    const t = i * Math.PI / 3;
+    atoms.push({ el:'H', pos:[2.5*Math.cos(t), 2.5*Math.sin(t), 0] });
+  }
+  for (let i = 0; i < 6; i++) {
+    bonds.push([i, (i+1)%6]);
+    bonds.push([i, i+6]);
+  }
+  return { name:"Benceno", formula:"C6H6", atoms, bonds };
+}
+
+const MOLECULES = {
+  agua: {
+    name:"Agua", formula:"H2O",
+    atoms:[
+      { el:'O', pos:[0,0,0] },
+      { el:'H', pos:[0.76,0.59,0] },
+      { el:'H', pos:[-0.76,0.59,0] }
+    ],
+    bonds:[[0,1],[0,2]]
+  },
+  metano: {
+    name:"Metano", formula:"CH4",
+    atoms:[
+      { el:'C', pos:[0,0,0] },
+      { el:'H', pos:[0.9,0.9,0.9] },
+      { el:'H', pos:[-0.9,-0.9,0.9] },
+      { el:'H', pos:[-0.9,0.9,-0.9] },
+      { el:'H', pos:[0.9,-0.9,-0.9] }
+    ],
+    bonds:[[0,1],[0,2],[0,3],[0,4]]
+  },
+  benceno: buildBenceno(),
+  cafeina: {
+    name:"Cafeína", formula:"C8H10N4O2 (átomos pesados)",
+    atoms:[
+      { el:'N', pos:[-1.2, 0.7, 0] },
+      { el:'C', pos:[-2.4, 0, 0] },
+      { el:'N', pos:[-2.4, -1.4, 0] },
+      { el:'C', pos:[-1.2, -2.1, 0] },
+      { el:'C', pos:[0, -1.4, 0] },
+      { el:'C', pos:[0, 0, 0] },
+      { el:'N', pos:[0.3, -2.7, 0] },
+      { el:'C', pos:[-0.6, -3.7, 0] },
+      { el:'N', pos:[-1.7, -3.4, 0] },
+      { el:'O', pos:[-3.6, 0.9, 0.3] },
+      { el:'O', pos:[1.0, 1.5, 0.3] },
+      { el:'C', pos:[-1.6, 2.0, -0.3] },
+      { el:'C', pos:[-4.0, -1.6, -0.3] },
+      { el:'C', pos:[1.15, -4.0, 0.3] }
+    ],
+    bonds:[
+      [0,1],[1,2],[2,3],[3,4],[4,5],[5,0],
+      [4,6],[6,7],[7,8],[8,3],
+      [1,9],[5,10],
+      [0,11],[2,12],[6,13]
+    ]
+  }
+};
+
+let scene, camera, glow;
+let currentMeshes = [];
+
+function createScene() {
+  scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0.008,0.01,0.03,1);
+
+  camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2.3, Math.PI/2.6, 12, BABYLON.Vector3.Zero(), scene);
+  camera.attachControl(canvas, true);
+  camera.lowerRadiusLimit = 3;
+  camera.upperRadiusLimit = 30;
+  camera.wheelPrecision = 40;
+  camera.useAutoRotationBehavior = true;
+  camera.autoRotationBehavior.idleRotationSpeed = 0.15;
+
+  const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+  hemi.intensity = 0.55;
+  const point = new BABYLON.PointLight("point", new BABYLON.Vector3(5,8,-5), scene);
+  point.intensity = 0.7;
+
+  glow = new BABYLON.GlowLayer("glow", scene);
+  glow.intensity = 0.9;
+
+  const ground = BABYLON.MeshBuilder.CreateGround("ground", { width:60, height:60 }, scene);
+  ground.position.y = -6;
+  const gridMat = new BABYLON.GridMaterial("gridMat", scene);
+  gridMat.majorUnitFrequency = 5;
+  gridMat.minorUnitVisibility = 0.25;
+  gridMat.gridRatio = 1;
+  gridMat.mainColor = new BABYLON.Color3(0,0,0);
+  gridMat.lineColor = new BABYLON.Color3(0,0.9,1);
+  gridMat.opacity = 0.55;
+  ground.material = gridMat;
+
+  buildMolecule(MOLECULES.cafeina);
+  return scene;
+}
+
+function clearMolecule() {
+  currentMeshes.forEach(m => m.dispose());
+  currentMeshes = [];
+}
+
+function buildMolecule(mol) {
+  clearMolecule();
+  document.getElementById("molName").innerText = mol.name;
+  document.getElementById("molFormula").innerText = mol.formula;
+
+  const atomMeshes = mol.atoms.map((atom, i) => {
+    const def = ELEMENTS[atom.el];
+    const sphere = BABYLON.MeshBuilder.CreateSphere("atom"+i, { diameter: def.radius*2, segments:16 }, scene);
+    sphere.position = new BABYLON.Vector3(atom.pos[0], atom.pos[1], atom.pos[2]);
+    const mat = new BABYLON.StandardMaterial("matAtom"+i, scene);
+    mat.emissiveColor = def.color;
+    mat.diffuseColor = def.color;
+    mat.specularColor = new BABYLON.Color3(1,1,1);
+    sphere.material = mat;
+    currentMeshes.push(sphere);
+    return sphere;
+  });
+
+  const bondMat = new BABYLON.StandardMaterial("bondMat", scene);
+  bondMat.emissiveColor = new BABYLON.Color3(0,0.55,0.65);
+  bondMat.diffuseColor = new BABYLON.Color3(0,0.3,0.35);
+  bondMat.alpha = 0.9;
+
+  mol.bonds.forEach(([a,b]) => {
+    const p1 = atomMeshes[a].position;
+    const p2 = atomMeshes[b].position;
+    const dist = BABYLON.Vector3.Distance(p1,p2);
+    const cyl = BABYLON.MeshBuilder.CreateCylinder("bond", { height:dist, diameter:0.09, tessellation:10 }, scene);
+    cyl.position = BABYLON.Vector3.Center(p1,p2);
+
+    const axis = p2.subtract(p1).normalize();
+    const up = BABYLON.Vector3.Up();
+    const dot = Math.min(1, Math.max(-1, BABYLON.Vector3.Dot(up, axis)));
+    const angle = Math.acos(dot);
+    const rotAxis = BABYLON.Vector3.Cross(up, axis);
+
+    if (rotAxis.length() > 0.0001) {
+      cyl.rotationQuaternion = BABYLON.Quaternion.RotationAxis(rotAxis.normalize(), angle);
+    } else if (dot < 0) {
+      cyl.rotationQuaternion = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Right(), Math.PI);
+    }
+
+    cyl.material = bondMat;
+    currentMeshes.push(cyl);
+  });
+
+  const c = mol.atoms.reduce((acc,a)=>{ acc.x+=a.pos[0]; acc.y+=a.pos[1]; acc.z+=a.pos[2]; return acc; }, {x:0,y:0,z:0});
+  const n = mol.atoms.length;
+  camera.target = new BABYLON.Vector3(c.x/n, c.y/n, c.z/n);
+}
+
+createScene();
+engine.runRenderLoop(() => scene.render());
+window.addEventListener("resize", () => engine.resize());
+
+document.querySelectorAll("[data-mol]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-mol]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    buildMolecule(MOLECULES[btn.dataset.mol]);
+  });
+});
+</script>
+</body>
+</html>
