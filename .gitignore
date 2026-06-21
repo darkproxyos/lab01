@@ -1,0 +1,53 @@
+```
+# Dependencies
+node_modules/
+
+# Package manager
+package-lock.json
+
+# Build outputs (if any JavaScript/TypeScript build artifacts were present, though not seen in the diff)
+dist/
+build/
+target/
+
+# Environment variables
+.env
+.env.local
+*.env.*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Python related (though not apparent in the diff, common for web projects)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage reports
+coverage/
+htmlcov/
+*.coverage
+
+# Local configuration files that might be generated
+*.local
+config/local.*
+
+```
